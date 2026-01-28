@@ -4,14 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.app.expensetracker.data.model.Expense
 import com.app.expensetracker.data.model.ExpenseUiState
-import com.app.expensetracker.data.repository.ExpenseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class MainViewModel(private val repo: ExpenseRepository): ViewModel() {
+class MainViewModel(private val repo: ExpenseRepository) : ViewModel() {
     private val _darkTheme = MutableStateFlow(false)
     val darkTheme: StateFlow<Boolean> = _darkTheme
 
@@ -27,14 +26,14 @@ class MainViewModel(private val repo: ExpenseRepository): ViewModel() {
     }
 
     private suspend fun loadToday() {
-        val today = System.currentTimeMillis()
-        val list = repo.getExpensesForDate(today)
+        val list = repo.getExpensesForDate(System.currentTimeMillis())
         _uiState.update { it.copy(expenses = list, totalSpentToday = list.sumOf { e -> e.amount }) }
     }
 
-    fun onAddExpense(title: String, amountText: String, category: String, notes: String?, receiptUri: String?) {
+    fun onAddExpense(
+        title: String, amountText: String, category: String, notes: String?, receiptUri: String?
+    ) {
         viewModelScope.launch {
-            // validation
             val trimmedTitle = title.trim()
             val amount = amountText.toDoubleOrNull() ?: -1.0
             val errors = mutableListOf<String>()
@@ -45,16 +44,12 @@ class MainViewModel(private val repo: ExpenseRepository): ViewModel() {
                 return@launch
             }
 
-            // duplicate detection: same title & amount within last 30 minutes
-            val recent = repo.getRecent(30)
-            val isDup = recent.any {
-                it.title.equals(trimmedTitle, true)
-                        && kotlin.math.abs(it.amount - amount) < 0.01
-                        && (System.currentTimeMillis() - it.timestamp) < (30 * 60 * 1000)
-            }
-            if (isDup) {
+            if (repo.getRecent(30).any {
+                    it.title.equals(
+                        trimmedTitle, true
+                    ) && kotlin.math.abs(it.amount - amount) < 0.01 && (System.currentTimeMillis() - it.timestamp) < (30 * 60 * 1000)
+                }) {
                 _uiState.update { it.copy(error = "Possible duplicate detected") }
-                // Optionally flag duplicate but still allow add
             }
 
             val expense = Expense(
@@ -85,15 +80,6 @@ class MainViewModel(private val repo: ExpenseRepository): ViewModel() {
 
     fun clearMessages() {
         _uiState.update { it.copy(error = null, successMessage = null) }
-    }
-
-
-    fun generateCsv(expenses: List<Expense>): String {
-        val sb = StringBuilder("id,title,amount,category,notes,timestamp\n")
-        expenses.forEach {
-            sb.append("${it.id},\"${it.title}\",${it.amount},${it.category},\"${it.notes ?: ""}\",${it.timestamp}\n")
-        }
-        return sb.toString()
     }
 
 }

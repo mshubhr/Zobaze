@@ -1,4 +1,4 @@
-package com.app.expensetracker.data.repository
+package com.app.expensetracker.viewmodel
 
 import com.app.expensetracker.data.local.ExpenseDao
 import com.app.expensetracker.data.model.Expense
@@ -11,13 +11,12 @@ class ExpenseRepository(private val dao: ExpenseDao? = null) {
 
     suspend fun addExpense(e: Expense) {
         memory.add(0, e)
-        dao?.insert(e.copy(isSynced = false ))
+        dao?.insert(e.copy(isSynced = false))
     }
 
     suspend fun syncPending() {
-        val pending = dao?.getPending()
         delay(2000)
-        pending?.forEach {
+        dao?.getPending()?.forEach {
             dao.update(it.copy(isSynced = true))
         }
     }
@@ -28,8 +27,9 @@ class ExpenseRepository(private val dao: ExpenseDao? = null) {
             cal.timeInMillis = it.timestamp
             val cal2 = Calendar.getInstance()
             cal2.timeInMillis = ts
-            cal.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
-                    cal.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+            cal.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) && cal.get(Calendar.DAY_OF_YEAR) == cal2.get(
+                Calendar.DAY_OF_YEAR
+            )
         }.sortedByDescending { it.timestamp }
     }
 

@@ -3,6 +3,7 @@ package com.app.expensetracker.ui.screens
 import android.content.Intent
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,27 +14,48 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.app.expensetracker.data.model.DailyPoint
 import com.app.expensetracker.data.model.Expense
-import com.app.expensetracker.ui.components.TopBarWithThemeToggle
+import com.app.expensetracker.data.model.ExpenseUiState
+import com.app.expensetracker.ui.components.TopBarWithThemeToggleContent
+import com.app.expensetracker.ui.theme.ExpenseTrackerTheme
 import com.app.expensetracker.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -41,125 +63,242 @@ import java.util.Locale
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-data class DailyPoint(val label: String, val value: Double)
+@Composable
+fun ExpenseReportScreen(vm: MainViewModel, modifier: Modifier, onBack: () -> Unit) {
+    val state by vm.uiState.collectAsState()
+    val darkTheme by vm.darkTheme.collectAsState()
+
+    ExpenseReportScreenContent(
+        state = state,
+        darkTheme = darkTheme,
+        onToggleTheme = { vm.toggleTheme() },
+        onBack = onBack,
+        modifier = modifier
+    )
+}
 
 @Composable
-fun ExpenseReportScreen(vm: MainViewModel, onBack: () -> Unit) {
-    val state by vm.uiState.collectAsState()
+fun ExpenseReportScreenContent(
+    state: ExpenseUiState,
+    darkTheme: Boolean,
+    onToggleTheme: () -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
 
-    // --- Aggregate last 7 days from whatever is in state.expenses ---
-    val last7: List<DailyPoint> = remember(state.expenses) {
-        computeLast7DailyTotals(state.expenses)
+    val last7 by remember(state.expenses) {
+        derivedStateOf { computeLast7DailyTotals(state.expenses) }
     }
 
-    val totalCount = state.expenses.size
-    val totalAmount = state.expenses.sumOf { it.amount }
+    val totalAmount = remember(state.expenses) { state.expenses.sumOf { it.amount } }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        TopBarWithThemeToggle(vm)
-
-        Text("Expense Report (Last 7 days)", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(8.dp))
-
-        // Totals row
-        Text(
-            text = "Total: $totalCount • ₹${"%.2f".format(totalAmount)}",
-            style = MaterialTheme.typography.titleMedium
+    Column(
+        modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+    ) {
+        TopBarWithThemeToggleContent(
+            darkTheme = darkTheme,
+            onToggleTheme = onToggleTheme,
+            modifier = Modifier.padding(horizontal = 8.dp)
         )
-        Spacer(Modifier.height(12.dp))
 
-        if (last7.all { it.value == 0.0 }) {
-            // Empty state
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No expenses yet!", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(6.dp))
-                    Text("Add expenses to see your 7-day report.")
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = onBack) { Text("Back") }
-                }
-            }
-            return
-        }
-
-        // Chart with value labels + x-axis labels
-        BarChartWithLabels(points = last7)
-
-        Spacer(Modifier.height(20.dp))
-
-        // Daily totals list (readable numbers under the chart)
-        Text("Daily totals", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
         LazyColumn(
-            modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
-            contentPadding = PaddingValues(bottom = 8.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            items(last7) { p ->
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(p.label)
-                    Text("₹${"%.2f".format(p.value)}")
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                    Text(
+                        "Expense Report",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
-        }
 
-        Spacer(Modifier.height(16.dp))
-
-        // Category-wise totals (from current list)
-        Text("Category totals", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        val categoryTotals = remember(state.expenses) {
-            state.expenses.groupBy { it.category }
-                .mapValues { entry -> entry.value.sumOf { it.amount } }
-                .toList()
-                .sortedByDescending { it.second }
-        }
-        if (categoryTotals.isEmpty()) {
-            Text("No categories yet")
-        } else {
-            categoryTotals.forEach { (cat, amt) ->
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+            item {
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(), colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                 ) {
-                    Text(cat)
-                    Text("₹${"%.2f".format(amt)}")
-                }
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        // Export CSV (simulation via share intent) with daily & category sections
-        Button(
-            onClick = {
-                val csv = buildString {
-                    appendLine("Section,Label,Amount")
-                    appendLine("Daily Totals,,")
-                    last7.forEach { appendLine(",${it.label},${"%.2f".format(it.value)}") }
-                    appendLine()
-                    appendLine("Category Totals,,")
-                    categoryTotals.forEach { (cat, amt) ->
-                        appendLine(",$cat,${"%.2f".format(amt)}")
+                    Column(Modifier.padding(20.dp)) {
+                        Text(
+                            "Total Spending (Last 7 Days)",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Text(
+                            "₹${"%.2f".format(totalAmount)}",
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Black
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "${state.expenses.size} transactions recorded",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        )
                     }
                 }
-                val share = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, "Expense Report (CSV)")
-                    putExtra(Intent.EXTRA_TEXT, csv)
+            }
+
+            if (last7.all { it.value == 0.0 }) {
+                item {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("No Data Available", style = MaterialTheme.typography.titleLarge)
+                            Spacer(Modifier.height(8.dp))
+                            Text("Your weekly summary will appear here.")
+                            Spacer(Modifier.height(24.dp))
+                            Button(onClick = onBack) { Text("Return Home") }
+                        }
+                    }
                 }
-                context.startActivity(Intent.createChooser(share, "Export Report"))
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Export CSV") }
+            } else {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                                alpha = 0.3f
+                            )
+                        )
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(
+                                "Spending Trends",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(20.dp))
+                            BarChartWithLabels(points = last7)
+                        }
+                    }
+                }
 
-        Spacer(Modifier.height(8.dp))
+                item {
+                    Column {
+                        Text(
+                            "Category Analysis",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        val categoryTotals = remember(state.expenses) {
+                            state.expenses.groupBy { it.category }
+                                .mapValues { entry -> entry.value.sumOf { it.amount } }.toList()
+                                .sortedByDescending { it.second }
+                        }
 
-        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-            Text("Back")
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        ) {
+                            Column {
+                                categoryTotals.forEachIndexed { index, (cat, amt) ->
+                                    Row(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                Modifier
+                                                    .size(10.dp)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                                        CircleShape
+                                                    )
+                                            )
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(cat, style = MaterialTheme.typography.bodyLarge)
+                                        }
+                                        Text(
+                                            "₹${amt.toInt()}",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    if (index < categoryTotals.size - 1) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(horizontal = 16.dp),
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(
+                                                alpha = 0.3f
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val categoryTotalsMap = state.expenses.groupBy { it.category }
+                                    .mapValues { it.value.sumOf { e -> e.amount } }
+                                val share = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, "Expense Report")
+                                    putExtra(Intent.EXTRA_TEXT, buildString {
+                                        appendLine("--- WEEKLY EXPENSE REPORT ---")
+                                        appendLine("Total: ₹${"%.2f".format(totalAmount)}")
+                                        appendLine()
+                                        appendLine("Daily Breakdown:")
+                                        last7.forEach { appendLine("${it.label}: ₹${"%.2f".format(it.value)}") }
+                                        appendLine()
+                                        appendLine("Category Analysis:")
+                                        categoryTotalsMap.forEach { (cat, amt) ->
+                                            appendLine("$cat: ₹${"%.2f".format(amt)}")
+                                        }
+                                    })
+                                }
+                                context.startActivity(Intent.createChooser(share, "Share Report"))
+                            }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Share,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Share")
+                        }
+
+                        Button(
+                            onClick = onBack,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Done")
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -170,11 +309,9 @@ private fun computeLast7DailyTotals(expenses: List<Expense>): List<DailyPoint> {
     val keyFmt = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
     val labelFmt = SimpleDateFormat("dd MMM", Locale.getDefault())
 
-    // Pre-aggregate by key
     val totalsByKey = expenses.groupBy { keyFmt.format(Date(it.timestamp)) }
         .mapValues { (_, list) -> list.sumOf { e -> e.amount } }
 
-    // Oldest to newest over last 7 days
     return (6 downTo 0).map { delta ->
         val dayMillis = now - delta * dayMs
         val key = keyFmt.format(Date(dayMillis))
@@ -183,40 +320,41 @@ private fun computeLast7DailyTotals(expenses: List<Expense>): List<DailyPoint> {
     }
 }
 
-/** Bar chart with value labels above bars and date labels on the X-axis. */
 @Composable
 fun BarChartWithLabels(points: List<DailyPoint>, modifier: Modifier = Modifier) {
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val valueTextSizePx = with(density) { 11.sp.toPx() }
+    val valueTextSizePx = with(density) { 10.sp.toPx() }
     val xLabelTextSizePx = with(density) { 10.sp.toPx() }
-    val topPadding = with(density) { 12.dp.toPx() }      // space for value labels
-    val bottomPadding = with(density) { 18.dp.toPx() }   // space for x-axis labels
+    val topPadding = with(density) { 24.dp.toPx() }
+    val bottomPadding = with(density) { 28.dp.toPx() }
 
-    // Paints for text
-    val valuePaint = remember {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val axisColor = MaterialTheme.colorScheme.outlineVariant
+
+    val valuePaint = remember(onSurfaceColor) {
         Paint().apply {
             isAntiAlias = true
             textAlign = Paint.Align.CENTER
+            color = onSurfaceColor.toArgb()
         }
     }.also { it.textSize = valueTextSizePx }
 
-    val xLabelPaint = remember {
+    val xLabelPaint = remember(labelColor) {
         Paint().apply {
             isAntiAlias = true
             textAlign = Paint.Align.CENTER
-            color = android.graphics.Color.DKGRAY
+            color = labelColor.toArgb()
         }
     }.also { it.textSize = xLabelTextSizePx }
-
-    val barColor = Color(0xFF4CAF50)
-    val axisColor = Color(0xFFBDBDBD)
 
     val maxVal = max(1.0, points.maxOfOrNull { it.value } ?: 1.0)
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(200.dp) // a bit taller to accommodate labels
+            .height(200.dp)
     ) {
         val chartWidth = size.width
         val chartHeight = size.height
@@ -224,47 +362,91 @@ fun BarChartWithLabels(points: List<DailyPoint>, modifier: Modifier = Modifier) 
         val barCount = points.size
         val slotWidth = chartWidth / barCount
 
-        // X-axis
         drawLine(
             color = axisColor,
             start = Offset(0f, chartHeight - bottomPadding),
             end = Offset(chartWidth, chartHeight - bottomPadding),
-            strokeWidth = 2f
+            strokeWidth = 1.dp.toPx()
         )
 
         points.forEachIndexed { i, p ->
-            val barHeight = ((p.value / maxVal).toFloat() * availableHeight).coerceAtLeast(0f)
-            val left = i * slotWidth + slotWidth * 0.18f
-            val right = i * slotWidth + slotWidth * 0.82f
+            val barHeight =
+                ((p.value / maxVal).toFloat() * availableHeight).coerceAtLeast(4.dp.toPx())
+            val barWidth = slotWidth * 0.45f
+            val left = i * slotWidth + (slotWidth - barWidth) / 2
             val top = chartHeight - bottomPadding - barHeight
-            val bottom = chartHeight - bottomPadding
 
-            // Bar
-            drawRect(
-                color = barColor,
+            drawRoundRect(
+                color = primaryColor,
                 topLeft = Offset(left, top),
-                size = Size(max(4f, right - left), barHeight)
+                size = Size(barWidth, barHeight),
+                cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
             )
 
-            // Value label above bar
-            val valueLabel = if (p.value < 1) "0" else "₹${p.value.roundToInt()}"
-            drawIntoCanvas { canvas ->
-                canvas.nativeCanvas.drawText(
-                    valueLabel,
-                    (left + right) / 2f,
-                    (top - 6f).coerceAtLeast(valueTextSizePx), // avoid clipping at very top
-                    valuePaint
-                )
+            if (p.value > 0) {
+                val valueLabel = "₹${p.value.roundToInt()}"
+                drawIntoCanvas { canvas ->
+                    canvas.nativeCanvas.drawText(
+                        valueLabel, i * slotWidth + slotWidth / 2f, top - 10f, valuePaint
+                    )
+                }
             }
 
             drawIntoCanvas { canvas ->
                 canvas.nativeCanvas.drawText(
-                    p.label, // e.g., "21 Aug"
-                    (left + right) / 2f,
-                    chartHeight - 4f,
-                    xLabelPaint
+                    p.label, i * slotWidth + slotWidth / 2f, chartHeight - 6f, xLabelPaint
                 )
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ExpenseReportScreenPreview() {
+    val sampleExpenses = listOf(
+        Expense(
+            title = "Lunch",
+            amount = 150.0,
+            category = "Food",
+            timestamp = System.currentTimeMillis()
+        ), Expense(
+            title = "Petrol",
+            amount = 500.0,
+            category = "Transport",
+            timestamp = System.currentTimeMillis() - 86400000
+        ), Expense(
+            title = "Groceries",
+            amount = 1200.0,
+            category = "Food",
+            timestamp = System.currentTimeMillis() - 86400000 * 2
+        ), Expense(
+            title = "Internet",
+            amount = 999.0,
+            category = "Bills",
+            timestamp = System.currentTimeMillis() - 86400000 * 3
+        ), Expense(
+            title = "Gym",
+            amount = 1500.0,
+            category = "Health",
+            timestamp = System.currentTimeMillis() - 86400000 * 4
+        ), Expense(
+            title = "Coffee",
+            amount = 50.0,
+            category = "Food",
+            timestamp = System.currentTimeMillis() - 86400000 * 5
+        ), Expense(
+            title = "Movie",
+            amount = 300.0,
+            category = "Entertainment",
+            timestamp = System.currentTimeMillis() - 86400000 * 6
+        )
+    )
+    ExpenseTrackerTheme {
+        ExpenseReportScreenContent(
+            state = ExpenseUiState(expenses = sampleExpenses),
+            darkTheme = false,
+            onToggleTheme = {},
+            onBack = {})
     }
 }

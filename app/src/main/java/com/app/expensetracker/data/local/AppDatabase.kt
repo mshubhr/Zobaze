@@ -5,9 +5,7 @@ import androidx.room.RoomDatabase
 import com.app.expensetracker.data.model.Expense
 
 @Database(
-    entities = [Expense::class],
-    version = 2,
-    exportSchema = true
+    entities = [Expense::class], version = 2, exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun expenseDao(): ExpenseDao
