@@ -2,39 +2,6 @@
 
 A simple and intuitive Android application built with Kotlin and Jetpack Compose to help users track their daily expenses, view spending patterns, and manage their budget effectively.
 
-## AI Usage Summary
-
-This project utilized AI assistance primarily for code generation, debugging, and exploring best practices. Tools like **Android Studio's built-in AI assistant (Gemini)** and potentially **GitHub Copilot** were used to accelerate development by:
-*   Generating boilerplate code for UI components (e.g., Composable functions).
-*   Suggesting solutions for common Android development problems and exceptions.
-*   Assisting in writing and refining utility functions (e.g., date formatting, data aggregation).
-*   Helping to draft documentation and explain complex code segments.
-
-## Key Prompt Examples
-
-Below are examples of prompts that might have been used during development. **Replace these with your actual key prompts.**
-
-Prompt 1 — UI layout:
-"Generate a compact Jetpack Compose layout for an 'Expense Entry' screen: inputs Title (text), Amount (number with ₹ prefix), Category dropdown (Staff/Travel/Food/Utility), Notes (max 100 chars), Receipt image upload button, Submit button. Show 'Total Spent Today' at the top. Provide only Compose code and minimal helper functions."
-
-Prompt 2 — ViewModel:
-"I need a Kotlin ViewModel for the Expense Tracker that uses StateFlow to manage: list of today's expenses, total spent today, lastAdded expense, error/success messages. Provide functions: addExpense(title, amountText, category, notes, receiptUri), clearMessages(), generateCsv(). Use coroutines and show validation for title and amount."
-
-Prompt 3 — Duplicate detection:
-"How to detect duplicates when adding new expense? Suggest a simple algorithm and show Kotlin implementation: consider duplicates when title (case-insensitive) matches and amount difference < 0.01 and timestamp within 30 minutes. Return code snippet."
-
-Prompt 4 — README & summary:
-"Write a 3-sentence AI usage summary describing how ChatGPT/Copilot was used to generate UI code, ViewModel, README and prompt tuning. Keep it formal."
-
-Prompt 5 — UX feedback:
-"Review this Expense Entry UI (paste code) and suggest 6 UX improvements for small business owners who may be non-technical. Prefer small tweaks that help speed of data entry."
-
-Prompt 6 — Offline sync mock:
-"Show how to implement offline-first behavior with Room and a mocked remote sync: mark local rows as isSynced=false, expose pending rows, and provide a sync function that simulates network delay and marks rows synced."
-
-Prompt 7 — Charts & labels:
-"Provide a simple mocked bar chart in Compose that shows last 7 days and includes value labels above each bar and date labels on the X-axis."
-
 ---
 
 ## Checklist — Features implemented
@@ -64,17 +31,14 @@ Prompt 7 — Charts & labels:
 ---
 
 ## Files & where to look
-- `app/src/main/java/.../data/Expense.kt` — data model / Room entity  
-- `app/src/main/java/.../data/ExpenseDao.kt` — Room DAO (queries + pending)  
-- `app/src/main/java/.../data/AppDatabase.kt` — Room DB (versioning & migrations)  
-- `app/src/main/java/.../repository/ExpenseRepository.kt` — repository / mock sync  
+- `app/src/main/java/.../data/model/Expense.kt` — data model / Room entity  
+- `app/src/main/java/.../data/local/ExpenseDao.kt` — Room DAO (queries + pending)  
+- `app/src/main/java/.../data/local/AppDatabase.kt` — Room DB (versioning & migrations)  
+- `app/src/main/java/.../viewmodel/ExpenseRepository.kt` — repository / mock sync  
 - `app/src/main/java/.../viewmodel/MainViewModel.kt` — ViewModel + StateFlow  
 - `app/src/main/java/.../ui/screens/ExpenseEntryScreen.kt` — entry screen + image upload  
 - `app/src/main/java/.../ui/screens/ExpenseListScreen.kt` — list, date picker, grouping, pinned footer  
 - `app/src/main/java/.../ui/screens/ExpenseReportScreen.kt` — 7-day chart, daily totals, export  
-- `app/src/main/java/.../ui/components/DropdownMenuWithItems.kt` — dropdown helper  
-- `app/src/main/java/.../ui/theme/MyExpenseTheme.kt` — theme + light/dark color schemes  
-- `README.md` — this file
 
 ---
 
