@@ -50,10 +50,4 @@ A simple and intuitive Android application built with Kotlin and Jetpack Compose
 3. Build & run on emulator/device.  
 4. To create APK:  
 ./gradlew assembleDebug
-# APK found at app/build/outputs/apk/debug/app-debug.apk
-
-Screenshots
-Add real screenshots to screenshots/ and replace placeholders below:
-<img width="720" height="1600" alt="Screenshot_20250824_214359" src="https://github.com/user-attachments/assets/ce487690-eacd-413b-bd20-affdcc70da36" />
-<img width="720" height="1600" alt="Screenshot_20250824_214519" src="https://github.com/user-attachments/assets/dacf78d4-9e2a-498f-a689-e4e2b860c5ac" />
-<img width="720" height="1600" alt="Screenshot_20250824_214540" src="https://github.com/user-attachments/assets/790fae1f-9ace-4b14-a71a-3cc2a441417d" />
+5. To run APK:  APK found at app/build/outputs/apk/debug/app-debug.apk
