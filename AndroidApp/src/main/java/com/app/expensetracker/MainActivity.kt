@@ -20,7 +20,7 @@ import com.app.expensetracker.data.local.AppDatabase
 import com.app.expensetracker.data.local.MIGRATION_1_2
 import com.app.expensetracker.viewmodel.ExpenseRepository
 import com.app.expensetracker.ui.AppNavGraph
-import com.app.expensetracker.ui.theme.ExpenseTrackerTheme
+import com.app.expensetracker.ui.ExpenseTrackerTheme
 import com.app.expensetracker.viewmodel.MainViewModel
 
 class MainActivity : ComponentActivity() {

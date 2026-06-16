@@ -24,14 +24,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
@@ -51,15 +49,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.app.expensetracker.data.model.Expense
 import com.app.expensetracker.data.model.ExpenseUiState
+import com.app.expensetracker.ui.components.ExpenseCard
 import com.app.expensetracker.ui.components.TopBarWithThemeToggleContent
-import com.app.expensetracker.ui.theme.ExpenseTrackerTheme
+import com.app.expensetracker.ui.ExpenseTrackerTheme
 import com.app.expensetracker.viewmodel.MainViewModel
 import java.util.Calendar
 import java.util.Date
@@ -274,8 +272,8 @@ fun ExpenseListScreenContent(
             ) {
                 FilterChip(
                     selected = filterFormatter.format(Date(selectedDate)) == filterFormatter.format(
-                    Date()
-                ),
+                        Date()
+                    ),
                     onClick = { selectedDate = System.currentTimeMillis() },
                     label = { Text("Today") },
                     leadingIcon = {
@@ -346,112 +344,33 @@ fun ExpenseListScreenContent(
     }
 }
 
-@Composable
-fun ExpenseCard(e: Expense) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        e.category.take(1).uppercase(),
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(
-                        e.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        e.category,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                    if (!e.notes.isNullOrBlank()) {
-                        Text(
-                            e.notes,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    "₹${"%.2f".format(e.amount)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (!e.isSynced) {
-                        Icon(
-                            Icons.Default.CloudSync,
-                            contentDescription = "Pending Sync",
-                            modifier = Modifier.size(12.dp),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(Modifier.width(4.dp))
-                    }
-                    Text(
-                        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(e.timestamp)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    )
-                }
-            }
-        }
-    }
-}
-
 @Preview(showBackground = true)
 @Composable
 fun ExpenseListScreenPreview() {
-    val sampleExpenses = listOf(
-        Expense(
-            title = "Lunch",
-            amount = 150.0,
-            category = "Food",
-            timestamp = System.currentTimeMillis()
-        ), Expense(
-            title = "Taxi Ride to Office",
-            amount = 200.0,
-            category = "Transport",
-            timestamp = System.currentTimeMillis() - 3600000,
-            isSynced = true,
-            notes = "Uber"
-        ), Expense(
-            title = "Monthly Groceries",
-            amount = 5400.0,
-            category = "Shopping",
-            timestamp = System.currentTimeMillis() - 7200000
-        )
-    )
     ExpenseTrackerTheme {
         ExpenseListScreenContent(
-            uiState = ExpenseUiState(expenses = sampleExpenses),
+            uiState = ExpenseUiState(
+                expenses = listOf(
+                    Expense(
+                        title = "Lunch",
+                        amount = 150.0,
+                        category = "Food",
+                        timestamp = System.currentTimeMillis()
+                    ), Expense(
+                        title = "Taxi Ride to Office",
+                        amount = 200.0,
+                        category = "Transport",
+                        timestamp = System.currentTimeMillis() - 3600000,
+                        isSynced = true,
+                        notes = "Uber"
+                    ), Expense(
+                        title = "Monthly Groceries",
+                        amount = 5400.0,
+                        category = "Shopping",
+                        timestamp = System.currentTimeMillis() - 7200000
+                    )
+                )
+            ),
             darkTheme = false,
             onSyncNow = {},
             onToggleTheme = {},

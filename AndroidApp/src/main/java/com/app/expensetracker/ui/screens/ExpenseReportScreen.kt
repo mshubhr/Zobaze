@@ -55,7 +55,7 @@ import com.app.expensetracker.data.model.DailyPoint
 import com.app.expensetracker.data.model.Expense
 import com.app.expensetracker.data.model.ExpenseUiState
 import com.app.expensetracker.ui.components.TopBarWithThemeToggleContent
-import com.app.expensetracker.ui.theme.ExpenseTrackerTheme
+import com.app.expensetracker.ui.ExpenseTrackerTheme
 import com.app.expensetracker.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -88,7 +88,26 @@ fun ExpenseReportScreenContent(
     val context = LocalContext.current
 
     val last7 by remember(state.expenses) {
-        derivedStateOf { computeLast7DailyTotals(state.expenses) }
+        derivedStateOf {
+            val keyFmt = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+
+            (6 downTo 0).map { delta ->
+                val dayMillis = System.currentTimeMillis() - delta * (24L * 60 * 60 * 1000)
+                DailyPoint(
+                    label = SimpleDateFormat("dd MMM", Locale.getDefault()).format(
+                        Date(
+                            dayMillis
+                        )
+                    ),
+                    value = state.expenses.groupBy { keyFmt.format(Date(it.timestamp)) }
+                        .mapValues { (_, list) -> list.sumOf { e -> e.amount } }[keyFmt.format(
+                        Date(
+                            dayMillis
+                        )
+                    )] ?: 0.0
+                )
+            }
+        }
     }
 
     val totalAmount = remember(state.expenses) { state.expenses.sumOf { it.amount } }
@@ -185,7 +204,87 @@ fun ExpenseReportScreenContent(
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(Modifier.height(20.dp))
-                            BarChartWithLabels(points = last7)
+
+                            val density = androidx.compose.ui.platform.LocalDensity.current
+                            val bottomPadding = with(density) { 28.dp.toPx() }
+
+                            val primaryColor = MaterialTheme.colorScheme.primary
+                            val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+                            val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            val axisColor = MaterialTheme.colorScheme.outlineVariant
+
+                            val valuePaint = remember(onSurfaceColor) {
+                                Paint().apply {
+                                    isAntiAlias = true
+                                    textAlign = Paint.Align.CENTER
+                                    color = onSurfaceColor.toArgb()
+                                }
+                            }.also { it.textSize = with(density) { 10.sp.toPx() } }
+
+                            val xLabelPaint = remember(labelColor) {
+                                Paint().apply {
+                                    isAntiAlias = true
+                                    textAlign = Paint.Align.CENTER
+                                    color = labelColor.toArgb()
+                                }
+                            }.also { it.textSize = with(density) { 10.sp.toPx() } }
+
+                            Canvas(
+                                modifier = modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
+                            ) {
+                                val chartWidth = size.width
+                                val chartHeight = size.height
+                                val slotWidth = chartWidth / last7.size
+
+                                drawLine(
+                                    color = axisColor,
+                                    start = Offset(0f, chartHeight - bottomPadding),
+                                    end = Offset(chartWidth, chartHeight - bottomPadding),
+                                    strokeWidth = 1.dp.toPx()
+                                )
+
+                                last7.forEachIndexed { i, p ->
+                                    val barHeight = ((p.value / max(
+                                        1.0,
+                                        last7.maxOfOrNull { it.value }
+                                            ?: 1.0)).toFloat() * (chartHeight - with(density) { 24.dp.toPx() } - bottomPadding)).coerceAtLeast(
+                                        4.dp.toPx()
+                                    )
+                                    val barWidth = slotWidth * 0.45f
+                                    val top = chartHeight - bottomPadding - barHeight
+
+                                    drawRoundRect(
+                                        color = primaryColor,
+                                        topLeft = Offset(
+                                            i * slotWidth + (slotWidth - barWidth) / 2, top
+                                        ),
+                                        size = Size(barWidth, barHeight),
+                                        cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
+                                    )
+
+                                    if (p.value > 0) {
+                                        drawIntoCanvas { canvas ->
+                                            canvas.nativeCanvas.drawText(
+                                                "₹${p.value.roundToInt()}",
+                                                i * slotWidth + slotWidth / 2f,
+                                                top - 10f,
+                                                valuePaint
+                                            )
+                                        }
+                                    }
+
+                                    drawIntoCanvas { canvas ->
+                                        canvas.nativeCanvas.drawText(
+                                            p.label,
+                                            i * slotWidth + slotWidth / 2f,
+                                            chartHeight - 6f,
+                                            xLabelPaint
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -303,150 +402,50 @@ fun ExpenseReportScreenContent(
     }
 }
 
-private fun computeLast7DailyTotals(expenses: List<Expense>): List<DailyPoint> {
-    val now = System.currentTimeMillis()
-    val dayMs = 24L * 60 * 60 * 1000
-    val keyFmt = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
-    val labelFmt = SimpleDateFormat("dd MMM", Locale.getDefault())
-
-    val totalsByKey = expenses.groupBy { keyFmt.format(Date(it.timestamp)) }
-        .mapValues { (_, list) -> list.sumOf { e -> e.amount } }
-
-    return (6 downTo 0).map { delta ->
-        val dayMillis = now - delta * dayMs
-        val key = keyFmt.format(Date(dayMillis))
-        val label = labelFmt.format(Date(dayMillis))
-        DailyPoint(label = label, value = totalsByKey[key] ?: 0.0)
-    }
-}
-
-@Composable
-fun BarChartWithLabels(points: List<DailyPoint>, modifier: Modifier = Modifier) {
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val valueTextSizePx = with(density) { 10.sp.toPx() }
-    val xLabelTextSizePx = with(density) { 10.sp.toPx() }
-    val topPadding = with(density) { 24.dp.toPx() }
-    val bottomPadding = with(density) { 28.dp.toPx() }
-
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val axisColor = MaterialTheme.colorScheme.outlineVariant
-
-    val valuePaint = remember(onSurfaceColor) {
-        Paint().apply {
-            isAntiAlias = true
-            textAlign = Paint.Align.CENTER
-            color = onSurfaceColor.toArgb()
-        }
-    }.also { it.textSize = valueTextSizePx }
-
-    val xLabelPaint = remember(labelColor) {
-        Paint().apply {
-            isAntiAlias = true
-            textAlign = Paint.Align.CENTER
-            color = labelColor.toArgb()
-        }
-    }.also { it.textSize = xLabelTextSizePx }
-
-    val maxVal = max(1.0, points.maxOfOrNull { it.value } ?: 1.0)
-
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(200.dp)
-    ) {
-        val chartWidth = size.width
-        val chartHeight = size.height
-        val availableHeight = chartHeight - topPadding - bottomPadding
-        val barCount = points.size
-        val slotWidth = chartWidth / barCount
-
-        drawLine(
-            color = axisColor,
-            start = Offset(0f, chartHeight - bottomPadding),
-            end = Offset(chartWidth, chartHeight - bottomPadding),
-            strokeWidth = 1.dp.toPx()
-        )
-
-        points.forEachIndexed { i, p ->
-            val barHeight =
-                ((p.value / maxVal).toFloat() * availableHeight).coerceAtLeast(4.dp.toPx())
-            val barWidth = slotWidth * 0.45f
-            val left = i * slotWidth + (slotWidth - barWidth) / 2
-            val top = chartHeight - bottomPadding - barHeight
-
-            drawRoundRect(
-                color = primaryColor,
-                topLeft = Offset(left, top),
-                size = Size(barWidth, barHeight),
-                cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
-            )
-
-            if (p.value > 0) {
-                val valueLabel = "₹${p.value.roundToInt()}"
-                drawIntoCanvas { canvas ->
-                    canvas.nativeCanvas.drawText(
-                        valueLabel, i * slotWidth + slotWidth / 2f, top - 10f, valuePaint
-                    )
-                }
-            }
-
-            drawIntoCanvas { canvas ->
-                canvas.nativeCanvas.drawText(
-                    p.label, i * slotWidth + slotWidth / 2f, chartHeight - 6f, xLabelPaint
-                )
-            }
-        }
-    }
-}
-
 @Preview(showBackground = true)
 @Composable
 fun ExpenseReportScreenPreview() {
-    val sampleExpenses = listOf(
-        Expense(
-            title = "Lunch",
-            amount = 150.0,
-            category = "Food",
-            timestamp = System.currentTimeMillis()
-        ), Expense(
-            title = "Petrol",
-            amount = 500.0,
-            category = "Transport",
-            timestamp = System.currentTimeMillis() - 86400000
-        ), Expense(
-            title = "Groceries",
-            amount = 1200.0,
-            category = "Food",
-            timestamp = System.currentTimeMillis() - 86400000 * 2
-        ), Expense(
-            title = "Internet",
-            amount = 999.0,
-            category = "Bills",
-            timestamp = System.currentTimeMillis() - 86400000 * 3
-        ), Expense(
-            title = "Gym",
-            amount = 1500.0,
-            category = "Health",
-            timestamp = System.currentTimeMillis() - 86400000 * 4
-        ), Expense(
-            title = "Coffee",
-            amount = 50.0,
-            category = "Food",
-            timestamp = System.currentTimeMillis() - 86400000 * 5
-        ), Expense(
-            title = "Movie",
-            amount = 300.0,
-            category = "Entertainment",
-            timestamp = System.currentTimeMillis() - 86400000 * 6
-        )
-    )
     ExpenseTrackerTheme {
         ExpenseReportScreenContent(
-            state = ExpenseUiState(expenses = sampleExpenses),
-            darkTheme = false,
-            onToggleTheme = {},
-            onBack = {})
+            state = ExpenseUiState(
+                expenses = listOf(
+                    Expense(
+                        title = "Lunch",
+                        amount = 150.0,
+                        category = "Food",
+                        timestamp = System.currentTimeMillis()
+                    ), Expense(
+                        title = "Petrol",
+                        amount = 500.0,
+                        category = "Transport",
+                        timestamp = System.currentTimeMillis() - 86400000
+                    ), Expense(
+                        title = "Groceries",
+                        amount = 1200.0,
+                        category = "Food",
+                        timestamp = System.currentTimeMillis() - 86400000 * 2
+                    ), Expense(
+                        title = "Internet",
+                        amount = 999.0,
+                        category = "Bills",
+                        timestamp = System.currentTimeMillis() - 86400000 * 3
+                    ), Expense(
+                        title = "Gym",
+                        amount = 1500.0,
+                        category = "Health",
+                        timestamp = System.currentTimeMillis() - 86400000 * 4
+                    ), Expense(
+                        title = "Coffee",
+                        amount = 50.0,
+                        category = "Food",
+                        timestamp = System.currentTimeMillis() - 86400000 * 5
+                    ), Expense(
+                        title = "Movie",
+                        amount = 300.0,
+                        category = "Entertainment",
+                        timestamp = System.currentTimeMillis() - 86400000 * 6
+                    )
+                )
+            ), darkTheme = false, onToggleTheme = {}, onBack = {})
     }
 }

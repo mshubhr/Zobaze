@@ -4,6 +4,7 @@ import com.app.expensetracker.data.local.ExpenseDao
 import com.app.expensetracker.data.model.Expense
 import kotlinx.coroutines.delay
 import java.util.Calendar
+import kotlin.time.Duration.Companion.milliseconds
 
 class ExpenseRepository(private val dao: ExpenseDao? = null) {
 
@@ -15,7 +16,7 @@ class ExpenseRepository(private val dao: ExpenseDao? = null) {
     }
 
     suspend fun syncPending() {
-        delay(2000)
+        delay(2000.milliseconds)
         dao?.getPending()?.forEach {
             dao.update(it.copy(isSynced = true))
         }

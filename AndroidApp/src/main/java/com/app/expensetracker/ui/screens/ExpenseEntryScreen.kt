@@ -45,8 +45,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -62,7 +60,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -71,8 +68,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.app.expensetracker.data.model.ExpenseUiState
+import com.app.expensetracker.ui.components.StyledTextField
 import com.app.expensetracker.ui.components.TopBarWithThemeToggleContent
-import com.app.expensetracker.ui.theme.ExpenseTrackerTheme
+import com.app.expensetracker.ui.ExpenseTrackerTheme
 import com.app.expensetracker.viewmodel.MainViewModel
 
 @Composable
@@ -211,10 +209,25 @@ fun ExpenseEntryContent(
                             )
                         }
                         Spacer(Modifier.height(4.dp))
-                        DropdownMenuWithItems(
-                            items = listOf("Staff", "Travel", "Food", "Utility"),
-                            selected = category.value,
-                            onSelected = { category.value = it })
+
+                        var expanded by remember { mutableStateOf(false) }
+                        Box {
+                            OutlinedButton(
+                                onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(category.value)
+                            }
+
+                            DropdownMenu(
+                                expanded = expanded, onDismissRequest = { expanded = false }) {
+                                listOf("Staff", "Travel", "Food", "Utility").forEach { item ->
+                                    DropdownMenuItem(text = { Text(item) }, onClick = {
+                                        category.value = item
+                                        expanded = false
+                                    })
+                                }
+                            }
+                        }
                     }
 
                     StyledTextField(
@@ -338,59 +351,6 @@ fun ExpenseEntryContent(
             }
 
             Spacer(Modifier.height(80.dp))
-        }
-    }
-}
-
-@Composable
-fun StyledTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    icon: ImageVector,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        leadingIcon = {
-            Icon(
-                icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary
-            )
-        },
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        keyboardOptions = keyboardOptions,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-            focusedLabelColor = MaterialTheme.colorScheme.primary
-        )
-    )
-}
-
-@Composable
-fun DropdownMenuWithItems(
-    items: List<String>, selected: String, onSelected: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box {
-        OutlinedButton(
-            onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(selected)
-        }
-
-        DropdownMenu(
-            expanded = expanded, onDismissRequest = { expanded = false }) {
-            items.forEach { item ->
-                DropdownMenuItem(text = { Text(item) }, onClick = {
-                    onSelected(item)
-                    expanded = false
-                })
-            }
         }
     }
 }
